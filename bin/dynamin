@@ -3,28 +3,91 @@
 'use strict'
 
 const dynamin = require('../lib')
-const argv = require('minimist')(process.argv.slice(2))
+const chalk = require('chalk')
+const yargs = require('yargs')
 
-if (!argv.r) {
-  console.error('Error: region must be specified.')
-  process.exit(1)
+const argv = yargs
+  .options('t', {
+    alias: 'table',
+    conflicts: 'tags',
+    describe: 'Table name',
+    type: 'string'
+  })
+  .options('tags', {
+    coerce: parseTags,
+    describe: 'Lists of tags (keys and values)',
+    type: 'array'
+  })
+  .options('r', {
+    alias: 'region',
+    demandOption: true,
+    describe: 'AWS region',
+    type: 'string'
+  })
+  .options('p', {
+    alias: 'profile',
+    describe: 'Profile name in your credential file',
+    type: 'string'
+  })
+  .check(check)
+  .argv
+
+function parseTags (tags) {
+  return tags.map(t => {
+    t = t.split(',')
+    const key = t[0].split('=')[1]
+    const values = t.slice(1).join(',').split('=')[1].split(',')
+    return {key, values}
+  })
 }
-dynamin.AWS.config.update({region: argv.r})
 
-if (!argv.t) {
-  console.error('Error: table must be specified.')
-  process.exit(1)
-}
-const tableName = argv.t
+function check (argv) {
+  if (!argv.t && !argv.tags) {
+    throw new Error('Either t or tags must be specified')
+  }
 
-if (argv.p) {
-  dynamin.AWS.config.credentials = new dynamin.AWS.SharedIniFileCredentials({profile: 'default'})
+  return true
 }
 
-dynamin.update(tableName)
-.then(() => {
-  console.log(`Capacity units of ${tableName} and its indexes have successfully been minimized.`)
-})
-.catch((err) => {
-  console.log(err.message)
-})
+function update (tableName) {
+  dynamin.update(tableName)
+  .then(() => {
+    console.log([
+      `${chalk.underline.yellow('Tables that have been minimized:')}`,
+      `  ${tableName}`
+    ].join('\n'))
+  })
+  .catch(err => {
+    console.error(chalk.red(err))
+  })
+}
+
+function updateByTags (tags) {
+  dynamin.updateByTags(tags)
+  .then(tableNames => {
+    let msg = tableNames.map(t => `  ${t}`)
+    msg.unshift(`${chalk.underline.yellow('Tables that have been minimized:')}`)
+    console.log(msg.join('\n'))
+  })
+  .catch(err => {
+    console.error(chalk.red(err))
+  })
+}
+
+function main () {
+  dynamin.AWS.config.update({region: argv.r})
+
+  if (argv.p) {
+    dynamin.AWS.config.credentials = new dynamin.AWS.SharedIniFileCredentials({profile: argv.p})
+  }
+
+  if (argv.t) {
+    return update(argv.t)
+  }
+
+  if (argv.tags) {
+    return updateByTags(argv.tags)
+  }
+}
+
+main()

@@ -1,7 +1,7 @@
 {
   "name": "dynamin",
   "version": "0.1.0",
-  "description": "Dynamin can minimize the readn and write capacity units of an Amazon DynamoDB table and its indexes",
+  "description": "Dynamin can minimize(i.e. set to 1) the read and write capacity units of an Amazon DynamoDB tables and its indexes",
   "main": "index.js",
   "bin": {
     "dynamin": "./bin/dynamin"
@@ -21,7 +21,8 @@
   "homepage": "https://github.com/takehilo/dynamin",
   "dependencies": {
     "aws-sdk": "^2.149.0",
-    "minimist": "^1.2.0"
+    "chalk": "^2.3.0",
+    "yargs": "^10.0.3"
   },
   "devDependencies": {
     "eslint": "^4.10.0",
