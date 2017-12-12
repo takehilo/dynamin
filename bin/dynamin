@@ -4,19 +4,30 @@
 
 const dynamin = require('../lib')
 const chalk = require('chalk')
+const ConfigStore = require('configstore')
 const yargs = require('yargs')
+const pkg = require('../package.json')
+
+const conf = new ConfigStore(pkg.name)
 
 const argv = yargs
   .options('t', {
     alias: 'table',
-    conflicts: 'tags',
+    conflicts: ['tags', 'restore'],
     describe: 'Table name',
     type: 'string'
   })
   .options('tags', {
     coerce: parseTags,
+    conflicts: ['t', 'restore'],
     describe: 'Lists of tags (keys and values)',
     type: 'array'
+  })
+  .options('restore', {
+    conflicts: ['t', 'tags'],
+    default: undefined,
+    describe: 'Restores capacity units',
+    type: 'boolean'
   })
   .options('r', {
     alias: 'region',
@@ -42,16 +53,20 @@ function parseTags (tags) {
 }
 
 function check (argv) {
-  if (!argv.t && !argv.tags) {
-    throw new Error('Either t or tags must be specified')
+  if (!argv.t && !argv.tags && !argv.restore) {
+    throw new Error('t, tags or restore must be specified')
   }
 
   return true
 }
 
-function update (tableName) {
-  dynamin.update(tableName)
-  .then(() => {
+function minimize (tableName) {
+  dynamin.minimize(tableName)
+  .then(table => {
+    if (table) {
+      conf.set(table.name, table)
+    }
+
     console.log([
       `${chalk.underline.yellow('Tables that have been minimized:')}`,
       `  ${tableName}`
@@ -62,12 +77,46 @@ function update (tableName) {
   })
 }
 
-function updateByTags (tags) {
-  dynamin.updateByTags(tags)
+function minimizeByTags (tags) {
+  dynamin.listByTags(tags)
   .then(tableNames => {
-    let msg = tableNames.map(t => `  ${t}`)
+    const promise = tableNames.reduce((prev, name) => {
+      return prev
+      .then(() => dynamin.minimize(name))
+      .then(table => {
+        if (table) {
+          conf.set(table.name, table)
+        }
+      })
+    }, Promise.resolve())
+
+    return promise.then(() => tableNames)
+  })
+  .then(tableNames => {
+    const msg = tableNames.map(t => `  ${t}`)
     msg.unshift(`${chalk.underline.yellow('Tables that have been minimized:')}`)
     console.log(msg.join('\n'))
+  })
+  .catch(err => {
+    console.error(chalk.red(err))
+  })
+}
+
+function restore () {
+  const tables = Object.keys(conf.all).map(key => conf.all[key])
+  const promise = tables.reduce((prev, table) => {
+    return prev
+    .then(() => dynamin.update(table))
+    .catch(err => {
+      if (err.code !== 'ValidationException') {
+        throw err
+      }
+    })
+  }, Promise.resolve())
+
+  return promise.then(() => {
+    conf.clear()
+    console.log(chalk.yellow('Completed restoring'))
   })
   .catch(err => {
     console.error(chalk.red(err))
@@ -82,11 +131,15 @@ function main () {
   }
 
   if (argv.t) {
-    return update(argv.t)
+    return minimize(argv.t)
   }
 
   if (argv.tags) {
-    return updateByTags(argv.tags)
+    return minimizeByTags(argv.tags)
+  }
+
+  if (argv.restore) {
+    return restore()
   }
 }
 

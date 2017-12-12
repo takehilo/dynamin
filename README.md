@@ -21,6 +21,7 @@ Options:
   --version      Show version number                                   [boolean]
   -t, --table    Table name                                             [string]
   --tags         Lists of tags (keys and values)                         [array]
+  --restore      Restores capacity units                               [boolean]
   -r, --region   AWS region                                  [string] [required]
   -p, --profile  Profile name in your credential file                   [string]
 ```
@@ -38,4 +39,11 @@ So the following minimizes tables tagged with `(stage=dev or stage=test) and (ty
 
 ```
 $ dynamin -r ap-northeast-1 --tags key=stage,values=dev,test key=type,values=web
+```
+
+Capacity unit values will be stored in a JSON file located in `~/.config/configstore/dynamin.json`.  
+You can restore the values by the following command.
+
+```
+$ dynamin -r ap-northeast-1 --restore
 ```
