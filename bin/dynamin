@@ -7,6 +7,7 @@ const chalk = require('chalk')
 const ConfigStore = require('configstore')
 const yargs = require('yargs')
 const pkg = require('../package.json')
+const ora = require('ora')
 
 const conf = new ConfigStore(pkg.name)
 
@@ -78,6 +79,8 @@ function minimize (tableName) {
 }
 
 function minimizeByTags (tags) {
+  const spinner = ora('Minimizing...').start()
+
   dynamin.listByTags(tags)
   .then(tableNames => {
     const promise = tableNames.reduce((prev, name) => {
@@ -95,14 +98,18 @@ function minimizeByTags (tags) {
   .then(tableNames => {
     const msg = tableNames.map(t => `  ${t}`)
     msg.unshift(`${chalk.underline.yellow('Tables that have been minimized:')}`)
+    spinner.stop()
     console.log(msg.join('\n'))
   })
   .catch(err => {
+    spinner.stop()
     console.error(chalk.red(err))
   })
 }
 
 function restore () {
+  const spinner = ora('Restoring...').start()
+
   const tables = Object.keys(conf.all).map(key => conf.all[key])
   const promise = tables.reduce((prev, table) => {
     return prev
@@ -116,9 +123,11 @@ function restore () {
 
   return promise.then(() => {
     conf.clear()
-    console.log(chalk.yellow('Completed restoring'))
+    spinner.stop()
+    console.log(chalk.yellow('Completed'))
   })
   .catch(err => {
+    spinner.stop()
     console.error(chalk.red(err))
   })
 }
