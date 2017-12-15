@@ -11,7 +11,9 @@
     "url": "https://github.com/takehilo/dynamin.git"
   },
   "keywords": [
-    "dynamodb"
+    "aws",
+    "dynamodb",
+    "cli"
   ],
   "author": "Takehiro Kaneko <takehilo.kaneko@gmail.com>",
   "license": "MIT",
