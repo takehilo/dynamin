@@ -8,6 +8,7 @@ const ConfigStore = require('configstore')
 const yargs = require('yargs')
 const pkg = require('../package.json')
 const ora = require('ora')
+const awsCredsLoader = require('aws-creds-loader')
 
 const conf = new ConfigStore(pkg.name)
 
@@ -32,7 +33,6 @@ const argv = yargs
   })
   .options('r', {
     alias: 'region',
-    demandOption: true,
     describe: 'AWS region',
     type: 'string'
   })
@@ -133,10 +133,10 @@ function restore () {
 }
 
 function main () {
-  dynamin.AWS.config.update({region: argv.r})
+  awsCredsLoader(dynamin.AWS)
 
-  if (argv.p) {
-    dynamin.AWS.config.credentials = new dynamin.AWS.SharedIniFileCredentials({profile: argv.p})
+  if (argv.r) {
+    dynamin.AWS.config.update({region: argv.r})
   }
 
   if (argv.t) {
